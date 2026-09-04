@@ -40,18 +40,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Clippy 不链接，但 tauri-build 会检查 bundle.resources 中引用的文件是否存在。
-      # 这里创建空的占位文件，让构建脚本通过，实际打包仍在 Windows 本地进行。
-      - name: Create VLC placeholder files for clippy
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "src-tauri\vlc-dist" | Out-Null
-          New-Item -ItemType File -Force -Path "src-tauri\vlc-dist\libvlc.dll" | Out-Null
-
       # The frontend layers of `pnpm verify`, plus clippy. test:rust is
       # deliberately absent: it links against libvlc (see header comment).
       - run: pnpm typecheck
       - run: pnpm test:front
       - run: pnpm verify:commands
       - run: pnpm verify:console
-      - run: pnpm verify:clippy
+
+      # Clippy doesn't link, but tauri-build still checks that files listed in
+      # bundle.resources exist. Use a CI-specific config with empty resources
+      # so the check passes without requiring VLC binaries in the repo.
+      - name: Run clippy with CI-specific Tauri config
+        run: pnpm verify:clippy
+        env:
+          TAURI_CONFIG: src-tauri/tauri.ci.conf.json
